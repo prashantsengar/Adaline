@@ -19,11 +19,11 @@ export type InsertItem = z.infer<typeof insertItemSchema>;
 export type Item = z.infer<typeof selectItemSchema>;
 
 export const itemIconSchema = z.enum([
-  "file-text",
-  "folder",
-  "image",
-  "video",
-  "music",
-  "code",
-  "archive"
+  "FileText",
+  "Folder",
+  "Image",
+  "Video",
+  "Music",
+  "Code",
+  "Archive"
 ]);

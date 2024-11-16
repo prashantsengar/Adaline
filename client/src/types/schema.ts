@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 export const itemIconSchema = z.enum([
-  "file-text",
-  "folder",
-  "image",
-  "video",
-  "music",
-  "code",
-  "archive"
+  "FileText",
+  "Folder",
+  "Image",
+  "Video",
+  "Music",
+  "Code",
+  "Archive"
 ]);
 
 export interface Item {

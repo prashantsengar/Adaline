@@ -49,7 +49,7 @@ export function CreateItemDialog() {
     defaultValues: {
       name: "",
       type: "file",
-      icon: "file-text",
+      icon: "FileText",
     },
   });
 
@@ -146,13 +146,13 @@ export function CreateItemDialog() {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="file-text">Text</SelectItem>
-                      <SelectItem value="image">Image</SelectItem>
-                      <SelectItem value="video">Video</SelectItem>
-                      <SelectItem value="music">Music</SelectItem>
-                      <SelectItem value="code">Code</SelectItem>
-                      <SelectItem value="archive">Archive</SelectItem>
-                      <SelectItem value="folder">Folder</SelectItem>
+                      <SelectItem value="FileText">Text</SelectItem>
+                      <SelectItem value="Image">Image</SelectItem>
+                      <SelectItem value="Video">Video</SelectItem>
+                      <SelectItem value="Music">Music</SelectItem>
+                      <SelectItem value="Code">Code</SelectItem>
+                      <SelectItem value="Archive">Archive</SelectItem>
+                      <SelectItem value="Folder">Folder</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

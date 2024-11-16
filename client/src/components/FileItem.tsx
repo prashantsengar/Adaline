@@ -11,7 +11,11 @@ interface FileItemProps {
 
 export function FileItem({ item, level, children }: FileItemProps) {
   const [isOpen, setIsOpen] = useState(true);
-  const Icon = Icons[item.icon as keyof typeof Icons];
+  
+  console.log('Icon name:', item.icon);
+  console.log('Available icons:', Object.keys(Icons));
+  
+  const Icon = Icons[item.icon as keyof typeof Icons] || Icons.File;
 
   return (
     <div>
