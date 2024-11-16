@@ -11,10 +11,23 @@ export function FileExplorer({ items }: FileExplorerProps) {
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
 
-    const sourceId = parseInt(result.draggableId);
-    const sourceParentId = result.source.droppableId === "root" ? null : parseInt(result.source.droppableId);
-    const targetParentId = result.destination.droppableId === "root" ? null : parseInt(result.destination.droppableId);
+    // Extract the actual item ID from the draggableId by removing the 'item-' prefix
+    const sourceId = parseInt(result.draggableId.replace('item-', ''));
+    const sourceParentId = result.source.droppableId === "root" ? null : 
+      parseInt(result.source.droppableId.replace('folder-', ''));
+    const targetParentId = result.destination.droppableId === "root" ? null : 
+      parseInt(result.destination.droppableId.replace('folder-', ''));
     const newPosition = result.destination.index;
+
+    console.log('Drag end:', { 
+      sourceId,
+      sourceParentId,
+      targetParentId,
+      newPosition,
+      originalDragId: result.draggableId,
+      originalSourceId: result.source.droppableId,
+      originalDestId: result.destination.droppableId
+    });
 
     // Only emit if there's an actual change
     if (sourceParentId !== targetParentId || result.source.index !== newPosition) {

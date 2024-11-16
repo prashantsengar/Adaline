@@ -21,51 +21,64 @@ export function FolderList({ items, level, allItems }: FolderListProps) {
 
   return (
     <>
-      {items.map((item, index) => (
-        <Draggable key={item.id} draggableId={item.id.toString()} index={index}>
-          {(provided, snapshot) => (
-            <div
-              ref={provided.innerRef}
-              {...provided.draggableProps}
-              {...provided.dragHandleProps}
-              className={`transition-transform duration-200 ${
-                snapshot.isDragging ? "scale-105" : ""
-              }`}
-            >
-              <FileItem
-                item={item}
-                level={level}
-                isOpen={openFolders[item.id] ?? true}
-                onToggle={() => toggleFolder(item.id)}
-                isDragging={snapshot.isDragging}
+      {items.map((item, index) => {
+        // Add debug logging
+        console.log('Draggable item:', { 
+          id: item.id, 
+          draggableId: `item-${item.id}`,
+          index 
+        });
+
+        return (
+          <Draggable 
+            key={`item-${item.id}`} 
+            draggableId={`item-${item.id}`} 
+            index={index}
+          >
+            {(provided, snapshot) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.draggableProps}
+                {...provided.dragHandleProps}
+                className={`transition-transform duration-200 ${
+                  snapshot.isDragging ? "scale-105" : ""
+                }`}
               >
-                {item.type === "folder" && (openFolders[item.id] ?? true) && (
-                  <Droppable droppableId={item.id.toString()}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`ml-6 mt-2 transition-all duration-200 ${
-                          snapshot.isDraggingOver 
-                            ? "bg-gray-100 rounded-lg p-2" 
-                            : "p-2"
-                        }`}
-                      >
-                        <FolderList
-                          items={allItems.filter(i => i.parentId === item.id)}
-                          level={level + 1}
-                          allItems={allItems}
-                        />
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                )}
-              </FileItem>
-            </div>
-          )}
-        </Draggable>
-      ))}
+                <FileItem
+                  item={item}
+                  level={level}
+                  isOpen={openFolders[item.id] ?? true}
+                  onToggle={() => toggleFolder(item.id)}
+                  isDragging={snapshot.isDragging}
+                >
+                  {item.type === "folder" && (openFolders[item.id] ?? true) && (
+                    <Droppable droppableId={`folder-${item.id}`}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`ml-6 mt-2 transition-all duration-200 ${
+                            snapshot.isDraggingOver 
+                              ? "bg-gray-100 rounded-lg p-2" 
+                              : "p-2"
+                          }`}
+                        >
+                          <FolderList
+                            items={allItems.filter(i => i.parentId === item.id)}
+                            level={level + 1}
+                            allItems={allItems}
+                          />
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  )}
+                </FileItem>
+              </div>
+            )}
+          </Draggable>
+        );
+      })}
     </>
   );
 }
