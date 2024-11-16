@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -26,33 +27,56 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 import { socketEvents } from "../lib/socket";
 import { itemIconSchema } from "../types/schema";
 
 const formSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().min(1, "Name is required"),
   type: z.enum(["file", "folder"]),
   icon: itemIconSchema,
 });
 
+type FormValues = z.infer<typeof formSchema>;
+
 export function CreateItemDialog() {
   const [open, setOpen] = useState(false);
-  const form = useForm<z.infer<typeof formSchema>>({
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      name: "",
       type: "file",
       icon: "file-text",
     },
   });
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    socketEvents.createItem({
-      ...values,
-      parentId: null,
-      position: 0,
-    });
-    setOpen(false);
-    form.reset();
+  const onSubmit = async (values: FormValues) => {
+    try {
+      setIsSubmitting(true);
+      await socketEvents.createItem({
+        ...values,
+        parentId: null,
+        position: 0,
+      });
+      toast({
+        title: "Success",
+        description: "Item created successfully",
+      });
+      setOpen(false);
+      form.reset();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create item. Please try again.",
+        variant: "destructive",
+      });
+      console.error("Failed to create item:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -63,6 +87,9 @@ export function CreateItemDialog() {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create New Item</DialogTitle>
+          <DialogDescription>
+            Create a new file or folder in your file system.
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -73,7 +100,7 @@ export function CreateItemDialog() {
                 <FormItem>
                   <FormLabel>Name</FormLabel>
                   <FormControl>
-                    <Input {...field} />
+                    <Input placeholder="Enter name..." {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -91,7 +118,7 @@ export function CreateItemDialog() {
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Select type" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -115,7 +142,7 @@ export function CreateItemDialog() {
                   >
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Select icon" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -132,7 +159,9 @@ export function CreateItemDialog() {
                 </FormItem>
               )}
             />
-            <Button type="submit">Create</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Creating..." : "Create"}
+            </Button>
           </form>
         </Form>
       </DialogContent>
