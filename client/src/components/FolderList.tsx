@@ -31,10 +31,12 @@ export function FolderList({ items, level, allItems }: FolderListProps) {
     <ErrorBoundary>
       <>
         {items.map((item, index) => {
+          const draggableId = `item-${item.id}`;
+          
           // Add debug logging for each draggable
           console.log('Rendering draggable item:', { 
             id: item.id, 
-            draggableId: `item-${item.id}`,
+            draggableId,
             index,
             type: item.type,
             name: item.name
@@ -42,37 +44,36 @@ export function FolderList({ items, level, allItems }: FolderListProps) {
 
           return (
             <Draggable 
-              key={`item-${item.id}`} 
-              draggableId={`item-${item.id}`} 
+              key={draggableId}
+              draggableId={draggableId}
               index={index}
-              isDragDisabled={false}
             >
               {(provided, snapshot) => (
                 <div
                   ref={provided.innerRef}
                   {...provided.draggableProps}
                   {...provided.dragHandleProps}
-                  className={`transition-transform duration-200 ${
-                    snapshot.isDragging ? "scale-105" : ""
-                  }`}
+                  style={{...provided.draggableProps.style}}
+                  className="transition-transform duration-200"
                 >
                   <FileItem
                     item={item}
                     level={level}
-                    isOpen={openFolders[item.id] ?? true}
+                    isOpen={openFolders[item.id] ?? false}
                     onToggle={() => toggleFolder(item.id)}
                     isDragging={snapshot.isDragging}
                   >
-                    {item.type === "folder" && (openFolders[item.id] ?? true) && (
-                      <Droppable droppableId={`folder-${item.id}`} type="ITEM">
-                        {(provided, snapshot) => (
+                    {item.type === "folder" && (openFolders[item.id] ?? false) && (
+                      <Droppable 
+                        droppableId={`folder-${item.id}`} 
+                        type="ITEM"
+                      >
+                        {(droppableProvided, droppableSnapshot) => (
                           <div
-                            ref={provided.innerRef}
-                            {...provided.droppableProps}
+                            ref={droppableProvided.innerRef}
+                            {...droppableProvided.droppableProps}
                             className={`ml-6 mt-2 transition-all duration-200 ${
-                              snapshot.isDraggingOver 
-                                ? "bg-gray-100 rounded-lg p-2" 
-                                : "p-2"
+                              droppableSnapshot.isDraggingOver ? "bg-gray-100 rounded-lg p-2" : "p-2"
                             }`}
                           >
                             <FolderList
@@ -80,7 +81,7 @@ export function FolderList({ items, level, allItems }: FolderListProps) {
                               level={level + 1}
                               allItems={allItems}
                             />
-                            {provided.placeholder}
+                            {droppableProvided.placeholder}
                           </div>
                         )}
                       </Droppable>

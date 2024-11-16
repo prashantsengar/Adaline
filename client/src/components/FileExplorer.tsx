@@ -49,21 +49,32 @@ export function FileExplorer({ items }: FileExplorerProps) {
 
   return (
     <ErrorBoundary>
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="root" type="ITEM">
-          {(provided, snapshot) => (
-            <div
-              ref={provided.innerRef}
-              {...provided.droppableProps}
-              className={`space-y-2 p-4 rounded-lg transition-colors ${
-                snapshot.isDraggingOver ? "bg-gray-100" : ""
-              }`}
-            >
-              <FolderList items={rootItems} level={0} allItems={items} />
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
+      <DragDropContext
+        onBeforeDragStart={(start) => {
+          console.log('Drag starting:', start);
+        }}
+        onDragEnd={onDragEnd}
+      >
+        <div className="space-y-2">
+          <Droppable droppableId="root" type="ITEM">
+            {(provided, snapshot) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                className={`space-y-2 p-4 rounded-lg transition-colors ${
+                  snapshot.isDraggingOver ? "bg-gray-100" : ""
+                }`}
+              >
+                <FolderList 
+                  items={rootItems} 
+                  level={0} 
+                  allItems={items} 
+                />
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </div>
       </DragDropContext>
     </ErrorBoundary>
   );
