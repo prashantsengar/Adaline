@@ -1,4 +1,6 @@
-import { Draggable, Droppable } from "react-beautiful-dnd";
+import { useSortable } from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { FileItem } from "./FileItem";
 import type { Item } from "../types/schema";
 import { useState } from "react";
@@ -10,8 +12,29 @@ interface FolderListProps {
   allItems: Item[];
 }
 
-export function FolderList({ items, level, allItems }: FolderListProps) {
+function SortableItem({ item, level, allItems }: { item: Item; level: number; allItems: Item[] }) {
   const [openFolders, setOpenFolders] = useState<Record<number, boolean>>({});
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ 
+    id: item.id,
+    data: {
+      type: item.type,
+      parentId: item.parentId,
+      name: item.name
+    }
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition
+  };
 
   const toggleFolder = (folderId: number) => {
     setOpenFolders(prev => ({
@@ -20,79 +43,50 @@ export function FolderList({ items, level, allItems }: FolderListProps) {
     }));
   };
 
-  // Add debug logging at the top level
-  console.log('Rendering FolderList with items:', items.map(item => ({
-    id: item.id,
-    draggableId: `item-${item.id}`,
-    name: item.name
-  })));
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+    >
+      <FileItem
+        item={item}
+        level={level}
+        isOpen={openFolders[item.id] ?? false}
+        onToggle={() => toggleFolder(item.id)}
+        isDragging={isDragging}
+      >
+        {item.type === "folder" && (openFolders[item.id] ?? false) && (
+          <div className="ml-6 mt-2 transition-all duration-200">
+            <SortableContext 
+              items={allItems.filter(i => i.parentId === item.id).map(i => i.id)} 
+              strategy={verticalListSortingStrategy}
+            >
+              <FolderList
+                items={allItems.filter(i => i.parentId === item.id)}
+                level={level + 1}
+                allItems={allItems}
+              />
+            </SortableContext>
+          </div>
+        )}
+      </FileItem>
+    </div>
+  );
+}
 
+export function FolderList({ items, level, allItems }: FolderListProps) {
   return (
     <ErrorBoundary>
-      <>
-        {items.map((item, index) => {
-          const draggableId = `item-${item.id}`;
-          
-          // Add debug logging for each draggable
-          console.log('Rendering draggable item:', { 
-            id: item.id, 
-            draggableId,
-            index,
-            type: item.type,
-            name: item.name
-          });
-
-          return (
-            <Draggable 
-              key={draggableId}
-              draggableId={draggableId}
-              index={index}
-            >
-              {(provided, snapshot) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.draggableProps}
-                  {...provided.dragHandleProps}
-                  style={{...provided.draggableProps.style}}
-                  className="transition-transform duration-200"
-                >
-                  <FileItem
-                    item={item}
-                    level={level}
-                    isOpen={openFolders[item.id] ?? false}
-                    onToggle={() => toggleFolder(item.id)}
-                    isDragging={snapshot.isDragging}
-                  >
-                    {item.type === "folder" && (openFolders[item.id] ?? false) && (
-                      <Droppable 
-                        droppableId={`folder-${item.id}`} 
-                        type="ITEM"
-                      >
-                        {(droppableProvided, droppableSnapshot) => (
-                          <div
-                            ref={droppableProvided.innerRef}
-                            {...droppableProvided.droppableProps}
-                            className={`ml-6 mt-2 transition-all duration-200 ${
-                              droppableSnapshot.isDraggingOver ? "bg-gray-100 rounded-lg p-2" : "p-2"
-                            }`}
-                          >
-                            <FolderList
-                              items={allItems.filter(i => i.parentId === item.id)}
-                              level={level + 1}
-                              allItems={allItems}
-                            />
-                            {droppableProvided.placeholder}
-                          </div>
-                        )}
-                      </Droppable>
-                    )}
-                  </FileItem>
-                </div>
-              )}
-            </Draggable>
-          );
-        })}
-      </>
+      {items.map((item) => (
+        <SortableItem 
+          key={item.id}
+          item={item}
+          level={level}
+          allItems={allItems}
+        />
+      ))}
     </ErrorBoundary>
   );
 }
