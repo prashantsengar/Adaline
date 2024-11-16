@@ -5,13 +5,36 @@ import { items, type Item } from "../db/schema";
 import { eq } from "drizzle-orm";
 
 export function setupSocket(server: HTTPServer) {
-  const io = new Server(server);
+  const io = new Server(server, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST"]
+    },
+    transports: ['websocket', 'polling'],
+    pingTimeout: 60000,
+    pingInterval: 25000
+  });
+
+  // Add error middleware
+  io.use((socket, next) => {
+    try {
+      console.log("Socket middleware - new connection attempt:", socket.id);
+      next();
+    } catch (err) {
+      console.error('Socket middleware error:', err);
+      next(new Error('Internal server error'));
+    }
+  });
 
   io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
 
-    socket.on("disconnect", () => {
-      console.log("Client disconnected:", socket.id);
+    socket.on("disconnect", (reason) => {
+      console.log("Client disconnected:", socket.id, "Reason:", reason);
+    });
+
+    socket.on("error", (error) => {
+      console.error("Socket error:", error);
     });
 
     socket.on("moveItem", async (data: { itemId: number, targetParentId: number | null, position: number }, callback) => {

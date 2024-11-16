@@ -1,30 +1,65 @@
 import { io } from "socket.io-client";
 import type { Item } from "../types/schema";
 
-const socket = io();
+const socket = io({
+  transports: ['websocket', 'polling'],
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  timeout: 20000,
+});
 
-// Connection status monitoring
+// Connection status monitoring with detailed logging
 socket.on("connect", () => {
-  console.log("Socket connected successfully");
+  console.log("Socket connected successfully", {
+    id: socket.id,
+    connected: socket.connected,
+    transport: socket.io.engine.transport.name
+  });
 });
 
 socket.on("connect_error", (error) => {
-  console.error("Socket connection error:", error);
+  console.error("Socket connection error:", {
+    error,
+    message: error.message,
+    type: error.type,
+    description: error.description
+  });
 });
 
 socket.on("disconnect", (reason) => {
-  console.warn("Socket disconnected:", reason);
+  console.warn("Socket disconnected:", {
+    reason,
+    wasConnected: socket.connected,
+    attempts: socket.io.engine.reconnectionAttempts
+  });
 });
 
-// Helper function to handle socket emissions with error handling
+socket.io.on("error", (error) => {
+  console.error("Transport error:", error);
+});
+
+socket.io.on("reconnect_attempt", (attempt) => {
+  console.log("Reconnection attempt:", attempt);
+});
+
+// Helper function to handle socket emissions with error handling and timeouts
 const emitWithError = async <T>(event: string, data: any): Promise<T> => {
   return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error(`Socket ${event} timeout after 5000ms`));
+    }, 5000);
+
     socket.emit(event, data, (response: { error?: string; data?: T }) => {
+      clearTimeout(timeout);
       if (response?.error) {
         console.error(`Socket ${event} error:`, response.error);
         reject(new Error(response.error));
       } else {
-        console.log(`Socket ${event} successful:`, data);
+        console.log(`Socket ${event} successful:`, {
+          event,
+          data: response?.data
+        });
         resolve(response?.data as T);
       }
     });
