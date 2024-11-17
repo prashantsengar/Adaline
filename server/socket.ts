@@ -50,7 +50,7 @@ export function setupSocket(server: HTTPServer) {
         const { itemId, targetParentId, position } = data;
         console.log("Moving item:", { itemId, targetParentId, position });
         
-        // Get the source item and validate
+        // Get the source item
         const sourceItems = await db.select().from(items).where(eq(items.id, itemId)).limit(1);
         if (!sourceItems.length) {
           throw new Error("Item not found");
@@ -60,12 +60,38 @@ export function setupSocket(server: HTTPServer) {
         const sourceParentId = sourceItem.parentId;
         const oldPosition = sourceItem.position;
 
-        // Begin transaction to ensure atomic updates
-        await db.transaction(async (tx) => {
-          if (sourceParentId !== targetParentId) {
-            // Moving between different parents
-            // First, decrease positions in source parent
-            await tx.update(items)
+        if (sourceParentId !== targetParentId) {
+          // Moving between different parents
+          // First, decrease positions in source parent
+          await db.update(items)
+            .set({ 
+              position: sql`${items.position} - 1`,
+              updatedAt: new Date()
+            })
+            .where(
+              and(
+                eq(items.parentId, sourceParentId),
+                gt(items.position, oldPosition)
+              )
+            );
+
+          // Then, increase positions in target parent
+          await db.update(items)
+            .set({ 
+              position: sql`${items.position} + 1`,
+              updatedAt: new Date()
+            })
+            .where(
+              and(
+                eq(items.parentId, targetParentId),
+                gte(items.position, position)
+              )
+            );
+        } else {
+          // Moving within same parent
+          if (oldPosition < position) {
+            // Moving down
+            await db.update(items)
               .set({ 
                 position: sql`${items.position} - 1`,
                 updatedAt: new Date()
@@ -73,66 +99,37 @@ export function setupSocket(server: HTTPServer) {
               .where(
                 and(
                   eq(items.parentId, sourceParentId),
-                  gt(items.position, oldPosition)
+                  gt(items.position, oldPosition),
+                  lte(items.position, position)
                 )
               );
-
-            // Then, increase positions in target parent
-            await tx.update(items)
+          } else if (oldPosition > position) {
+            // Moving up
+            await db.update(items)
               .set({ 
                 position: sql`${items.position} + 1`,
                 updatedAt: new Date()
               })
               .where(
                 and(
-                  eq(items.parentId, targetParentId),
-                  gte(items.position, position)
+                  eq(items.parentId, sourceParentId),
+                  gte(items.position, position),
+                  lt(items.position, oldPosition)
                 )
               );
-          } else {
-            // Moving within same parent
-            if (oldPosition < position) {
-              // Moving down - decrease positions of items between old and new position
-              await tx.update(items)
-                .set({ 
-                  position: sql`${items.position} - 1`,
-                  updatedAt: new Date()
-                })
-                .where(
-                  and(
-                    eq(items.parentId, sourceParentId),
-                    gt(items.position, oldPosition),
-                    lte(items.position, position)
-                  )
-                );
-            } else if (oldPosition > position) {
-              // Moving up - increase positions of items between new and old position
-              await tx.update(items)
-                .set({ 
-                  position: sql`${items.position} + 1`,
-                  updatedAt: new Date()
-                })
-                .where(
-                  and(
-                    eq(items.parentId, sourceParentId),
-                    gte(items.position, position),
-                    lt(items.position, oldPosition)
-                  )
-                );
-            }
           }
+        }
 
-          // Finally update the moved item
-          await tx.update(items)
-            .set({ 
-              parentId: targetParentId,
-              position,
-              updatedAt: new Date()
-            })
-            .where(eq(items.id, itemId));
-        });
+        // Update the moved item
+        await db.update(items)
+          .set({ 
+            parentId: targetParentId,
+            position,
+            updatedAt: new Date()
+          })
+          .where(eq(items.id, itemId));
 
-        // Get the updated item to return
+        // Get the updated item
         const updatedItems = await db.select()
           .from(items)
           .where(eq(items.id, itemId))
