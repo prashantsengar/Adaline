@@ -20,7 +20,7 @@ interface SortableItemProps {
 
 const SortableItem = memo(({ item, level, allItems }: SortableItemProps) => {
   const [openFolders, setOpenFolders] = useState<Record<number, boolean>>({});
-
+  
   const {
     attributes,
     listeners,
@@ -33,20 +33,20 @@ const SortableItem = memo(({ item, level, allItems }: SortableItemProps) => {
     data: {
       type: item.type,
       parentId: item.parentId,
-      name: item.name
+      position: item.position
     }
   });
 
-  const toggleFolder = (folderId: number) => {
-    setOpenFolders(prev => ({
-      ...prev,
-      [folderId]: !prev[folderId]
-    }));
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition: transition || 'transform 150ms ease',
   };
 
   return (
     <div
       ref={setNodeRef}
+      style={style}
+      className="touch-none"
       {...attributes}
       {...listeners}
     >
@@ -54,13 +54,18 @@ const SortableItem = memo(({ item, level, allItems }: SortableItemProps) => {
         item={item}
         level={level}
         isOpen={openFolders[item.id] ?? false}
-        onToggle={() => toggleFolder(item.id)}
+        onToggle={() => {
+          if (item.type === 'folder') {
+            setOpenFolders(prev => ({
+              ...prev,
+              [item.id]: !prev[item.id]
+            }));
+          }
+        }}
         isDragging={isDragging}
-        transform={CSS.Transform.toString(transform)}
-        transition={transition}
       >
         {item.type === "folder" && (openFolders[item.id] ?? false) && (
-          <div className="ml-6 mt-2 transition-all duration-200">
+          <div className="ml-6 mt-2 transition-all duration-150">
             <SortableContext 
               items={allItems.filter(i => i.parentId === item.id).map(i => i.id)}
               strategy={verticalListSortingStrategy}

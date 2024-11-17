@@ -32,25 +32,38 @@ export function FileExplorer({ items }: FileExplorerProps) {
     let targetParentId = targetItem.parentId;
     let position = targetItem.position;
 
-    // Handle dropping between folders
-    const isBetweenFolders = targetItem.type === 'folder' && Math.abs(event.delta.y) >= 10;
-    if (isBetweenFolders) {
-      // Place at the target's position
-      targetParentId = targetItem.parentId;
-      position = targetItem.position;
-    } else if (targetItem.type === 'folder' && Math.abs(event.delta.y) < 10) {
-      // Place inside folder
-      targetParentId = targetItem.id;
-      const folderChildren = items.filter(item => item.parentId === targetItem.id);
-      position = folderChildren.length;
+    // If dropping on a folder, make it a child
+    if (targetItem.type === 'folder') {
+      const dropOffset = event.delta.y;
+      const dropThreshold = 10; // pixels
+      
+      if (Math.abs(dropOffset) < dropThreshold) {
+        // Dropping directly on folder - make it a child
+        targetParentId = targetItem.id;
+        const folderChildren = items.filter(item => item.parentId === targetItem.id);
+        position = folderChildren.length;
+      } else {
+        // Dropping between items - maintain same parent
+        targetParentId = targetItem.parentId;
+        position = targetItem.position;
+        if (dropOffset > 0) position += 1;
+      }
     }
+
+    console.log('Moving item:', {
+      itemId: draggedItem.id,
+      targetParentId,
+      position,
+      dropDetails: {
+        type: targetItem.type,
+        offset: event.delta.y
+      }
+    });
 
     socketEvents.moveItem({
       itemId: draggedItem.id,
       targetParentId,
       position
-    }).catch(error => {
-      console.error('Failed to move item:', error);
     });
   };
 
