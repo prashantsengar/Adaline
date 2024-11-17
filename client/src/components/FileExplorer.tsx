@@ -34,11 +34,25 @@ export function FileExplorer({ items }: FileExplorerProps) {
     let targetParentId = targetItem.parentId;
     let position = targetItem.position;
 
-    // If dropping onto a folder, make it a child of that folder
-    if (targetItem.type === 'folder') {
-      targetParentId = targetItem.id;
-      const folderChildren = items.filter(item => item.parentId === targetParentId);
-      position = folderChildren.length; // Place at the end of folder
+    // If dropping directly between items (not on a folder), use the target's parent
+    if (targetItem.type !== 'folder' || event.modifiers?.shiftKey) {
+      targetParentId = targetItem.parentId;
+      position = targetItem.position;
+    } else {
+      // Only make it a child of folder if dropping directly on folder
+      const isDirectlyOnFolder = Math.abs(event.delta.y) < 10;
+      if (isDirectlyOnFolder) {
+        targetParentId = targetItem.id;
+        const folderChildren = items.filter(item => item.parentId === targetParentId);
+        position = folderChildren.length;
+      }
+    }
+
+    // Special case: dropping at root level
+    if (event.over.data?.current?.isRoot) {
+      targetParentId = null;
+      const rootItems = items.filter(item => !item.parentId);
+      position = rootItems.length;
     }
 
     console.log('Moving item:', {
@@ -65,15 +79,21 @@ export function FileExplorer({ items }: FileExplorerProps) {
         onDragEnd={handleDragEnd}
       >
         <div className="space-y-2">
-          <SortableContext items={items.map(item => item.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2 p-4 rounded-lg">
+          <div 
+            className="space-y-2 p-4 rounded-lg"
+            data-is-root="true"
+          >
+            <SortableContext 
+              items={rootItems.map(item => item.id)} 
+              strategy={verticalListSortingStrategy}
+            >
               <FolderList 
                 items={rootItems} 
                 level={0} 
                 allItems={items} 
               />
-            </div>
-          </SortableContext>
+            </SortableContext>
+          </div>
         </div>
       </DndContext>
     </ErrorBoundary>
