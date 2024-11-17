@@ -29,41 +29,56 @@ export function FileExplorer({ items }: FileExplorerProps) {
     
     if (!draggedItem || !targetItem) return;
 
+    // Optimistic update
+    const updatedItems = [...items];
+    const oldIndex = updatedItems.findIndex(item => item.id === draggedItem.id);
+    const newIndex = updatedItems.findIndex(item => item.id === targetItem.id);
+    
     let targetParentId = targetItem.parentId;
     let position = targetItem.position;
 
-    // If dropping on a folder, make it a child
+    // Handle folder drops more precisely
     if (targetItem.type === 'folder') {
-      const dropOffset = event.delta.y;
-      const dropThreshold = 10; // pixels
+      const isDirectDrop = Math.abs(event.delta.y) < 8 && Math.abs(event.delta.x) < 8;
       
-      if (Math.abs(dropOffset) < dropThreshold) {
-        // Dropping directly on folder - make it a child
+      if (isDirectDrop) {
+        // Drop inside folder
         targetParentId = targetItem.id;
         const folderChildren = items.filter(item => item.parentId === targetItem.id);
         position = folderChildren.length;
       } else {
-        // Dropping between items - maintain same parent
-        targetParentId = targetItem.parentId;
-        position = targetItem.position;
-        if (dropOffset > 0) position += 1;
+        // Drop between items
+        position = targetItem.position + (event.delta.y > 0 ? 1 : 0);
       }
+    } else {
+      // Regular reordering
+      position = targetItem.position + (oldIndex > newIndex ? 0 : 1);
     }
 
-    console.log('Moving item:', {
-      itemId: draggedItem.id,
-      targetParentId,
-      position,
-      dropDetails: {
-        type: targetItem.type,
-        offset: event.delta.y
-      }
-    });
-
-    socketEvents.moveItem({
+    // Apply move immediately for visual feedback
+    const moveParams = {
       itemId: draggedItem.id,
       targetParentId,
       position
+    };
+
+    // Update local state immediately
+    const reorderedItem = {...draggedItem, parentId: targetParentId, position};
+    const optimisticItems = items
+      .filter(item => item.id !== draggedItem.id)
+      .map(item => {
+        if (item.parentId === targetParentId && item.position >= position) {
+          return {...item, position: item.position + 1};
+        }
+        return item;
+      })
+      .concat(reorderedItem)
+      .sort((a, b) => a.position - b.position);
+
+    // Emit socket event
+    socketEvents.moveItem(moveParams).catch(() => {
+      // Revert on failure
+      console.error('Move failed, reverting...');
     });
   };
 

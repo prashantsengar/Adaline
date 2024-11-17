@@ -27,7 +27,8 @@ const SortableItem = memo(({ item, level, allItems }: SortableItemProps) => {
     setNodeRef,
     transform,
     transition,
-    isDragging
+    isDragging,
+    isOver
   } = useSortable({ 
     id: item.id,
     data: {
@@ -39,14 +40,19 @@ const SortableItem = memo(({ item, level, allItems }: SortableItemProps) => {
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: transition || 'transform 150ms ease',
+    transition: isDragging ? 'none' : transition || 'transform 120ms ease',
+    zIndex: isDragging ? 999 : 'auto',
   };
+
+  // Add drop indicator
+  const isOverFolder = isOver && item.type === 'folder';
+  const dropIndicatorClass = isOverFolder ? 'ring-2 ring-primary ring-offset-2' : '';
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="touch-none"
+      className={`touch-none ${dropIndicatorClass}`}
       {...attributes}
       {...listeners}
     >
