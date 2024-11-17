@@ -4,6 +4,7 @@ import { FolderList } from "./FolderList";
 import { socketEvents } from "../lib/socket";
 import type { Item } from "../types/schema";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { useEffect } from "react";
 
 interface FileExplorerProps {
   items: Item[];
@@ -21,10 +22,7 @@ export function FileExplorer({ items }: FileExplorerProps) {
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
     
-    if (!over || active.id === over.id) {
-      console.log('No valid destination, skipping update');
-      return;
-    }
+    if (!over || active.id === over.id) return;
 
     const draggedItem = items.find(item => item.id === active.id);
     const targetItem = items.find(item => item.id === over.id);
@@ -34,32 +32,18 @@ export function FileExplorer({ items }: FileExplorerProps) {
     let targetParentId = targetItem.parentId;
     let position = targetItem.position;
 
-    // If dropping directly between items (not on a folder), use the target's parent
-    if (targetItem.type !== 'folder' || event.modifiers?.shiftKey) {
+    // Handle dropping between folders
+    const isBetweenFolders = targetItem.type === 'folder' && Math.abs(event.delta.y) >= 10;
+    if (isBetweenFolders) {
+      // Place at the target's position
       targetParentId = targetItem.parentId;
       position = targetItem.position;
-    } else {
-      // Only make it a child of folder if dropping directly on folder
-      const isDirectlyOnFolder = Math.abs(event.delta.y) < 10;
-      if (isDirectlyOnFolder) {
-        targetParentId = targetItem.id;
-        const folderChildren = items.filter(item => item.parentId === targetParentId);
-        position = folderChildren.length;
-      }
+    } else if (targetItem.type === 'folder' && Math.abs(event.delta.y) < 10) {
+      // Place inside folder
+      targetParentId = targetItem.id;
+      const folderChildren = items.filter(item => item.parentId === targetItem.id);
+      position = folderChildren.length;
     }
-
-    // Special case: dropping at root level
-    if (event.over.data?.current?.isRoot) {
-      targetParentId = null;
-      const rootItems = items.filter(item => !item.parentId);
-      position = rootItems.length;
-    }
-
-    console.log('Moving item:', {
-      itemId: draggedItem.id,
-      targetParentId,
-      position
-    });
 
     socketEvents.moveItem({
       itemId: draggedItem.id,

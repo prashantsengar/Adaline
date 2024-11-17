@@ -3,7 +3,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities';
 import { FileItem } from "./FileItem";
 import type { Item } from "../types/schema";
-import { useState } from "react";
+import { useState, memo } from "react";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 interface FolderListProps {
@@ -12,7 +12,13 @@ interface FolderListProps {
   allItems: Item[];
 }
 
-function SortableItem({ item, level, allItems }: { item: Item; level: number; allItems: Item[] }) {
+interface SortableItemProps {
+  item: Item;
+  level: number;
+  allItems: Item[];
+}
+
+const SortableItem = memo(({ item, level, allItems }: SortableItemProps) => {
   const [openFolders, setOpenFolders] = useState<Record<number, boolean>>({});
 
   const {
@@ -31,11 +37,6 @@ function SortableItem({ item, level, allItems }: { item: Item; level: number; al
     }
   });
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition
-  };
-
   const toggleFolder = (folderId: number) => {
     setOpenFolders(prev => ({
       ...prev,
@@ -46,7 +47,6 @@ function SortableItem({ item, level, allItems }: { item: Item; level: number; al
   return (
     <div
       ref={setNodeRef}
-      style={style}
       {...attributes}
       {...listeners}
     >
@@ -56,6 +56,8 @@ function SortableItem({ item, level, allItems }: { item: Item; level: number; al
         isOpen={openFolders[item.id] ?? false}
         onToggle={() => toggleFolder(item.id)}
         isDragging={isDragging}
+        transform={CSS.Transform.toString(transform)}
+        transition={transition}
       >
         {item.type === "folder" && (openFolders[item.id] ?? false) && (
           <div className="ml-6 mt-2 transition-all duration-200">
@@ -79,7 +81,9 @@ function SortableItem({ item, level, allItems }: { item: Item; level: number; al
       </FileItem>
     </div>
   );
-}
+});
+
+SortableItem.displayName = 'SortableItem';
 
 export function FolderList({ items, level, allItems }: FolderListProps) {
   return (

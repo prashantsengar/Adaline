@@ -9,16 +9,30 @@ interface FileItemProps {
   isOpen: boolean;
   onToggle: () => void;
   isDragging?: boolean;
+  transform?: string;
+  transition?: string;
 }
 
-export function FileItem({ item, level, children, isOpen, onToggle, isDragging }: FileItemProps) {
-  console.log('Icon name:', item.icon);
-  console.log('Available icons:', Object.keys(Icons));
-  
+export function FileItem({ 
+  item, 
+  level, 
+  children, 
+  isOpen, 
+  onToggle, 
+  isDragging,
+  transform,
+  transition
+}: FileItemProps) {
   const Icon = Icons[item.icon as keyof typeof Icons] || Icons.File;
 
+  const style = {
+    transform,
+    transition: transition || 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
+    animation: isDragging ? 'none' : 'moveIn 200ms ease-out'
+  };
+
   return (
-    <div>
+    <div style={style} className="draggable-item">
       <div
         className={cn(
           "flex items-center p-2 rounded-lg",
