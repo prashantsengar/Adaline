@@ -40,13 +40,13 @@ const SortableItem = memo(({ item, level, allItems }: SortableItemProps) => {
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition: isDragging ? 'none' : transition || 'transform 120ms ease',
+    transition: isDragging ? 'none' : transition || 'transform 100ms ease',
     zIndex: isDragging ? 999 : 'auto',
   };
 
-  // Add drop indicator
+  // Enhanced drop indicator
   const isOverFolder = isOver && item.type === 'folder';
-  const dropIndicatorClass = isOverFolder ? 'ring-2 ring-primary ring-offset-2' : '';
+  const dropIndicatorClass = isOverFolder ? 'ring-2 ring-primary ring-offset-2 bg-primary/5' : '';
 
   return (
     <div
