@@ -4,7 +4,6 @@ import { FolderList } from "./FolderList";
 import { socketEvents } from "../lib/socket";
 import type { Item } from "../types/schema";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { useEffect } from "react";
 
 interface FileExplorerProps {
   items: Item[];
@@ -29,57 +28,51 @@ export function FileExplorer({ items }: FileExplorerProps) {
     
     if (!draggedItem || !targetItem) return;
 
-    let targetParentId = targetItem.parentId;
-    let position = targetItem.position;
+    // Calculate drop position
+    const dropPoint = {
+      x: event.delta.x,
+      y: event.delta.y
+    };
 
-    // More precise folder drop detection
+    let targetParentId = targetItem.parentId;
+    let position;
+
+    // Handle folder drops
     if (targetItem.type === 'folder') {
-      const dropPoint = {
-        x: event.delta.x,
-        y: event.delta.y
-      };
-      const isDirectFolderDrop = Math.abs(dropPoint.y) < 5 && Math.abs(dropPoint.x) < 20;
-      
-      if (isDirectFolderDrop) {
-        // Drop inside folder
+      // If dropping directly on folder (small movement), place inside
+      if (Math.abs(dropPoint.y) < 5) {
         targetParentId = targetItem.id;
         const folderChildren = items.filter(item => item.parentId === targetItem.id);
         position = folderChildren.length;
       } else {
-        // Drop between items
+        // If dropping with larger movement, place before/after folder
         targetParentId = targetItem.parentId;
         position = targetItem.position + (dropPoint.y > 0 ? 1 : 0);
       }
     } else {
-      // Regular reordering
+      // Regular file ordering
       targetParentId = targetItem.parentId;
-      position = targetItem.position;
+      position = targetItem.position + (dropPoint.y > 0 ? 1 : 0);
     }
 
-    // Optimistic updates
-    const updatedItems = [...items];
-    const oldIndex = updatedItems.findIndex(item => item.id === draggedItem.id);
-    const newIndex = updatedItems.findIndex(item => item.id === targetItem.id);
-    
-    // Update positions for all affected items
-    const affectedItems = updatedItems.filter(item => 
-      item.parentId === targetParentId && 
-      ((item.position >= position && item.id !== draggedItem.id) || 
-       (draggedItem.parentId === targetParentId && item.position > draggedItem.position))
-    );
+    // Get all items in the same parent
+    const siblingItems = items.filter(item => item.parentId === targetParentId);
 
-    // Immediately update UI
-    const movedItem = {...draggedItem, parentId: targetParentId, position};
-    const reorderedItems = [
-      ...items.filter(item => item.id !== draggedItem.id && !affectedItems.find(a => a.id === item.id)),
-      ...affectedItems.map(item => ({
-        ...item,
-        position: item.position + (item.position >= position ? 1 : -1)
-      })),
-      movedItem
-    ].sort((a, b) => {
-      if (a.parentId === b.parentId) return a.position - b.position;
-      return 0;
+    // Ensure position is within bounds
+    position = Math.max(0, Math.min(position, siblingItems.length));
+
+    // Log the move operation for debugging
+    console.log('Moving item:', {
+      itemId: draggedItem.id,
+      name: draggedItem.name,
+      from: {
+        parentId: draggedItem.parentId,
+        position: draggedItem.position
+      },
+      to: {
+        parentId: targetParentId,
+        position: position
+      }
     });
 
     // Send update to server
@@ -89,7 +82,6 @@ export function FileExplorer({ items }: FileExplorerProps) {
       position
     }).catch((error) => {
       console.error('Move failed:', error);
-      // Revert optimistic update here if needed
     });
   };
 
