@@ -44,11 +44,9 @@ const SortableItem = memo(({ item, level, allItems }: SortableItemProps) => {
     zIndex: isDragging ? 999 : 'auto',
   };
 
-  // Enhanced drop indicator with smooth transition
+  // Enhanced drop indicator
   const isOverFolder = isOver && item.type === 'folder';
-  const dropIndicatorClass = isOverFolder 
-    ? 'ring-2 ring-primary ring-offset-2 bg-primary/5 transition-all duration-150'
-    : '';
+  const dropIndicatorClass = isOverFolder ? 'ring-2 ring-primary ring-offset-2 bg-primary/5' : '';
 
   return (
     <div
