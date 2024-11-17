@@ -5,6 +5,11 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react(), themePlugin()],
+  server: {
+    watch: {
+      ignored: ['vite.config.ts.timestamp-*'],
+    },
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "client", "src"),

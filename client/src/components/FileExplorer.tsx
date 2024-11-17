@@ -21,17 +21,38 @@ export function FileExplorer({ items }: FileExplorerProps) {
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
     
-    console.log('Drag end:', { active, over });
-    
     if (!over || active.id === over.id) {
       console.log('No valid destination, skipping update');
       return;
     }
 
+    const draggedItem = items.find(item => item.id === active.id);
+    const targetItem = items.find(item => item.id === over.id);
+    
+    if (!draggedItem || !targetItem) return;
+
+    let targetParentId = targetItem.parentId;
+    let position = targetItem.position;
+
+    // If dropping onto a folder, make it a child of that folder
+    if (targetItem.type === 'folder') {
+      targetParentId = targetItem.id;
+      const folderChildren = items.filter(item => item.parentId === targetParentId);
+      position = folderChildren.length; // Place at the end of folder
+    }
+
+    console.log('Moving item:', {
+      itemId: draggedItem.id,
+      targetParentId,
+      position
+    });
+
     socketEvents.moveItem({
-      itemId: active.id,
-      targetParentId: over.data?.current?.parentId || null,
-      position: over.data?.current?.sortable?.index || 0
+      itemId: draggedItem.id,
+      targetParentId,
+      position
+    }).catch(error => {
+      console.error('Failed to move item:', error);
     });
   };
 

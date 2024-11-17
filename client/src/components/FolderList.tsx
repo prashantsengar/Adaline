@@ -60,14 +60,19 @@ function SortableItem({ item, level, allItems }: { item: Item; level: number; al
         {item.type === "folder" && (openFolders[item.id] ?? false) && (
           <div className="ml-6 mt-2 transition-all duration-200">
             <SortableContext 
-              items={allItems.filter(i => i.parentId === item.id).map(i => i.id)} 
+              items={allItems.filter(i => i.parentId === item.id).map(i => i.id)}
               strategy={verticalListSortingStrategy}
             >
-              <FolderList
-                items={allItems.filter(i => i.parentId === item.id)}
-                level={level + 1}
-                allItems={allItems}
-              />
+              {allItems
+                .filter(i => i.parentId === item.id)
+                .map((childItem) => (
+                  <SortableItem 
+                    key={childItem.id}
+                    item={childItem}
+                    level={level + 1}
+                    allItems={allItems}
+                  />
+                ))}
             </SortableContext>
           </div>
         )}
@@ -79,14 +84,19 @@ function SortableItem({ item, level, allItems }: { item: Item; level: number; al
 export function FolderList({ items, level, allItems }: FolderListProps) {
   return (
     <ErrorBoundary>
-      {items.map((item) => (
-        <SortableItem 
-          key={item.id}
-          item={item}
-          level={level}
-          allItems={allItems}
-        />
-      ))}
+      <SortableContext 
+        items={items.map(item => item.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        {items.map((item) => (
+          <SortableItem 
+            key={item.id}
+            item={item}
+            level={level}
+            allItems={allItems}
+          />
+        ))}
+      </SortableContext>
     </ErrorBoundary>
   );
 }

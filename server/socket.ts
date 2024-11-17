@@ -2,17 +2,25 @@ import { Server } from "socket.io";
 import type { Server as HTTPServer } from "http";
 import { db } from "../db";
 import { items, type Item } from "../db/schema";
-import { eq, and, gte, lte, asc, desc } from "drizzle-orm";
+import { eq, and, gte, lte, sql } from "drizzle-orm";
 
 export function setupSocket(server: HTTPServer) {
   const io = new Server(server, {
     cors: {
       origin: "*",
-      methods: ["GET", "POST"]
+      methods: ["GET", "POST"],
+      credentials: true
     },
-    transports: ['websocket', 'polling'],
+    path: "/socket.io/",
+    transports: ['polling', 'websocket'],
     pingTimeout: 60000,
-    pingInterval: 25000
+    pingInterval: 25000,
+    connectTimeout: 45000,
+    allowEIO3: true
+  });
+
+  io.engine.on("connection_error", (err) => {
+    console.log("Connection error:", err);
   });
 
   // Add error middleware
@@ -42,25 +50,20 @@ export function setupSocket(server: HTTPServer) {
         const { itemId, targetParentId, position } = data;
         console.log("Moving item:", { itemId, targetParentId, position });
         
-        // Get the source item and its current parent
-        const [sourceItem] = await db.select()
-          .from(items)
-          .where(eq(items.id, itemId));
+        const sourceItems = await db.select().from(items).where(eq(items.id, itemId)).limit(1);
 
-        if (!sourceItem) {
+        if (!sourceItems.length) {
           throw new Error("Item not found");
         }
 
+        const sourceItem = sourceItems[0];
         const sourceParentId = sourceItem.parentId;
         const oldPosition = sourceItem.position;
 
-        // Update positions in the source parent
         if (sourceParentId !== targetParentId) {
-          // Moving between different parents
-          // 1. Update positions in the source parent
           await db.update(items)
             .set({ 
-              position: db.sql`${items.position} - 1`,
+              position: sql`${items.position} - 1`,
               updatedAt: new Date()
             })
             .where(
@@ -70,10 +73,9 @@ export function setupSocket(server: HTTPServer) {
               )
             );
 
-          // 2. Update positions in the target parent
           await db.update(items)
             .set({ 
-              position: db.sql`${items.position} + 1`,
+              position: sql`${items.position} + 1`,
               updatedAt: new Date()
             })
             .where(
@@ -83,12 +85,10 @@ export function setupSocket(server: HTTPServer) {
               )
             );
         } else {
-          // Moving within the same parent
           if (oldPosition < position) {
-            // Moving down
             await db.update(items)
               .set({ 
-                position: db.sql`${items.position} - 1`,
+                position: sql`${items.position} - 1`,
                 updatedAt: new Date()
               })
               .where(
@@ -99,10 +99,9 @@ export function setupSocket(server: HTTPServer) {
                 )
               );
           } else if (oldPosition > position) {
-            // Moving up
             await db.update(items)
               .set({ 
-                position: db.sql`${items.position} + 1`,
+                position: sql`${items.position} + 1`,
                 updatedAt: new Date()
               })
               .where(
@@ -115,8 +114,7 @@ export function setupSocket(server: HTTPServer) {
           }
         }
 
-        // Finally, update the source item
-        const [updatedItem] = await db.update(items)
+        const updatedItems = await db.update(items)
           .set({ 
             parentId: targetParentId,
             position,
@@ -125,7 +123,8 @@ export function setupSocket(server: HTTPServer) {
           .where(eq(items.id, itemId))
           .returning();
 
-        io.emit("itemMoved", data);
+        const updatedItem = updatedItems[0];
+        io.emit("itemMoved", updatedItem);
         callback?.({ data: updatedItem });
       } catch (error) {
         console.error("Error moving item:", error);
@@ -137,15 +136,13 @@ export function setupSocket(server: HTTPServer) {
       try {
         console.log("Creating item:", item);
         
-        // Validate required fields
         if (!item.name || !item.type || !item.icon) {
           throw new Error("Missing required fields");
         }
 
-        // Update positions of existing items in the same parent
         await db.update(items)
           .set({ 
-            position: db.sql`${items.position} + 1`,
+            position: sql`${items.position} + 1`,
             updatedAt: new Date()
           })
           .where(
@@ -155,7 +152,7 @@ export function setupSocket(server: HTTPServer) {
             )
           );
 
-        const [newItem] = await db.insert(items)
+        const newItems = await db.insert(items)
           .values({
             ...item,
             createdAt: new Date(),
@@ -163,6 +160,7 @@ export function setupSocket(server: HTTPServer) {
           })
           .returning();
 
+        const newItem = newItems[0];
         console.log("Item created successfully:", newItem);
         io.emit("itemCreated", newItem);
         callback?.({ data: newItem });
@@ -176,18 +174,19 @@ export function setupSocket(server: HTTPServer) {
       try {
         console.log("Deleting item:", itemId);
         
-        const [deletedItem] = await db.delete(items)
+        const deletedItems = await db.delete(items)
           .where(eq(items.id, itemId))
           .returning();
 
-        if (!deletedItem) {
+        if (!deletedItems.length) {
           throw new Error("Item not found");
         }
 
-        // Update positions of remaining items
+        const deletedItem = deletedItems[0];
+
         await db.update(items)
           .set({ 
-            position: db.sql`${items.position} - 1`,
+            position: sql`${items.position} - 1`,
             updatedAt: new Date()
           })
           .where(

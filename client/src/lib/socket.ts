@@ -2,11 +2,15 @@ import { io } from "socket.io-client";
 import type { Item } from "../types/schema";
 
 const socket = io({
+  // Ensure we're connecting to the same origin
+  path: "/socket.io",
   transports: ['websocket', 'polling'],
   reconnection: true,
-  reconnectionAttempts: 5,
+  reconnectionAttempts: Infinity,
   reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
   timeout: 20000,
+  autoConnect: true
 });
 
 // Connection status monitoring with detailed logging
@@ -25,6 +29,10 @@ socket.on("connect_error", (error) => {
     type: error.type,
     description: error.description
   });
+  // Attempt to reconnect with a different transport
+  if (socket.io.engine.transport.name === 'websocket') {
+    socket.io.engine.transport.name = 'polling';
+  }
 });
 
 socket.on("disconnect", (reason) => {
@@ -67,8 +75,17 @@ const emitWithError = async <T>(event: string, data: any): Promise<T> => {
 };
 
 export const socketEvents = {
-  moveItem: (data: { itemId: number; targetParentId: number | null; position: number }) =>
-    emitWithError("moveItem", data),
+  moveItem: async (data: { itemId: number; targetParentId: number | null; position: number }) => {
+    console.log('Sending moveItem event:', data);
+    try {
+      const result = await emitWithError("moveItem", data);
+      console.log('Move successful:', result);
+      return result;
+    } catch (error) {
+      console.error('Move failed:', error);
+      throw error;
+    }
+  },
   
   createItem: (item: Omit<Item, "id" | "createdAt" | "updatedAt">) =>
     emitWithError<Item>("createItem", item),
