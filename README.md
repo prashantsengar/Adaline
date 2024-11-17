@@ -2,6 +2,10 @@
 
 A real-time file system with folder support and multi-session sync built with React, TypeScript, and Socket.IO.
 
+## Try it out
+
+Try it out on Replit: [https://adaline-prashant-s.replit.app/](https://adaline-prashant-s.replit.app/)
+
 ## Features
 - Real-time drag and drop file/folder organization
 - Multi-session synchronization
