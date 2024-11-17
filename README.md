@@ -19,11 +19,6 @@ A real-time file system with folder support and multi-session sync built with Re
 ## Environment Variables
 ```env
 DATABASE_URL=postgresql://[user]:[password]@[host]:[port]/[dbname]
-PGUSER=your_postgres_user
-PGPASSWORD=your_postgres_password
-PGDATABASE=your_database_name
-PGHOST=your_database_host
-PGPORT=your_database_port
 ```
 
 ## Setup Instructions
