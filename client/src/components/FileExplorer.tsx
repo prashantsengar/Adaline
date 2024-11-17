@@ -4,7 +4,6 @@ import { FolderList } from "./FolderList";
 import { socketEvents } from "../lib/socket";
 import type { Item } from "../types/schema";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { useEffect } from "react";
 
 interface FileExplorerProps {
   items: Item[];
@@ -29,67 +28,50 @@ export function FileExplorer({ items }: FileExplorerProps) {
     
     if (!draggedItem || !targetItem) return;
 
-    let targetParentId = targetItem.parentId;
-    let position = targetItem.position;
+    // Get the target element's bounding rectangle
+    const overElement = document.querySelector(`[data-id="${over.id}"]`);
+    if (!overElement) return;
 
-    // More precise folder drop detection
+    const rect = overElement.getBoundingClientRect();
+    const mouseY = event.activatorEvent.clientY;
+    
+    // Calculate relative position within the target element
+    const relativeY = mouseY - rect.top;
+    const relativePercentage = relativeY / rect.height;
+
+    let targetParentId = targetItem.parentId;
+    let position;
+
+    // Handle folder targets
     if (targetItem.type === 'folder') {
-      const dropPoint = {
-        x: event.delta.x,
-        y: event.delta.y
-      };
-      const isDirectFolderDrop = Math.abs(dropPoint.y) < 5 && Math.abs(dropPoint.x) < 20;
-      
-      if (isDirectFolderDrop) {
+      // Three zones: top (0-30%), middle (30-70%), bottom (70-100%)
+      if (relativePercentage > 0.3 && relativePercentage < 0.7) {
         // Drop inside folder
         targetParentId = targetItem.id;
         const folderChildren = items.filter(item => item.parentId === targetItem.id);
         position = folderChildren.length;
       } else {
-        // Drop between items
+        // Drop above or below folder
         targetParentId = targetItem.parentId;
-        position = targetItem.position + (dropPoint.y > 0 ? 1 : 0);
+        const siblings = items.filter(item => item.parentId === targetParentId);
+        const targetIndex = siblings.findIndex(item => item.id === targetItem.id);
+        position = relativePercentage <= 0.3 ? targetIndex : targetIndex + 1;
       }
     } else {
-      // Regular reordering
+      // Handle file targets
       targetParentId = targetItem.parentId;
-      position = targetItem.position;
+      const siblings = items.filter(item => item.parentId === targetParentId);
+      const targetIndex = siblings.findIndex(item => item.id === targetItem.id);
+      position = relativePercentage <= 0.5 ? targetIndex : targetIndex + 1;
     }
 
-    // Optimistic updates
-    const updatedItems = [...items];
-    const oldIndex = updatedItems.findIndex(item => item.id === draggedItem.id);
-    const newIndex = updatedItems.findIndex(item => item.id === targetItem.id);
-    
-    // Update positions for all affected items
-    const affectedItems = updatedItems.filter(item => 
-      item.parentId === targetParentId && 
-      ((item.position >= position && item.id !== draggedItem.id) || 
-       (draggedItem.parentId === targetParentId && item.position > draggedItem.position))
-    );
-
-    // Immediately update UI
-    const movedItem = {...draggedItem, parentId: targetParentId, position};
-    const reorderedItems = [
-      ...items.filter(item => item.id !== draggedItem.id && !affectedItems.find(a => a.id === item.id)),
-      ...affectedItems.map(item => ({
-        ...item,
-        position: item.position + (item.position >= position ? 1 : -1)
-      })),
-      movedItem
-    ].sort((a, b) => {
-      if (a.parentId === b.parentId) return a.position - b.position;
-      return 0;
-    });
-
-    // Send update to server
+    // Update the dragged item's parent and position
     socketEvents.moveItem({
       itemId: draggedItem.id,
       targetParentId,
       position
     }).catch((error) => {
       console.error('Move failed:', error);
-      // Revert optimistic update here if needed
     });
   };
 

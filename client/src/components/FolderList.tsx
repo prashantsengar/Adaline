@@ -3,7 +3,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities';
 import { FileItem } from "./FileItem";
 import type { Item } from "../types/schema";
-import { useState, memo } from "react";
+import { useState, memo, useEffect } from "react";
 import { ErrorBoundary } from "./ErrorBoundary";
 
 interface FolderListProps {
@@ -28,7 +28,8 @@ const SortableItem = memo(({ item, level, allItems }: SortableItemProps) => {
     transform,
     transition,
     isDragging,
-    isOver
+    isOver,
+    over
   } = useSortable({ 
     id: item.id,
     data: {
@@ -38,15 +39,27 @@ const SortableItem = memo(({ item, level, allItems }: SortableItemProps) => {
     }
   });
 
+  // Auto-open folders when dragging over them
+  useEffect(() => {
+    if (isOver && item.type === 'folder') {
+      setOpenFolders(prev => ({
+        ...prev,
+        [item.id]: true
+      }));
+    }
+  }, [isOver, item.id, item.type]);
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition: isDragging ? 'none' : transition || 'transform 100ms ease',
     zIndex: isDragging ? 999 : 'auto',
   };
 
-  // Enhanced drop indicator
+  // Enhanced drop indicator with smooth transition
   const isOverFolder = isOver && item.type === 'folder';
-  const dropIndicatorClass = isOverFolder ? 'ring-2 ring-primary ring-offset-2 bg-primary/5' : '';
+  const dropIndicatorClass = isOverFolder 
+    ? 'ring-2 ring-primary ring-offset-2 bg-primary/5 transition-all duration-150'
+    : '';
 
   return (
     <div
@@ -55,6 +68,7 @@ const SortableItem = memo(({ item, level, allItems }: SortableItemProps) => {
       className={`touch-none ${dropIndicatorClass}`}
       {...attributes}
       {...listeners}
+      data-id={item.id}
     >
       <FileItem
         item={item}
@@ -69,6 +83,7 @@ const SortableItem = memo(({ item, level, allItems }: SortableItemProps) => {
           }
         }}
         isDragging={isDragging}
+        isOver={isOver}
       >
         {item.type === "folder" && (openFolders[item.id] ?? false) && (
           <div className="ml-6 mt-2 transition-all duration-150">
